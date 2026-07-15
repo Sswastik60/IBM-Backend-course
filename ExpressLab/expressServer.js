@@ -6,7 +6,17 @@ const app = new express();
 
 // Initialize an array to store login details
 let loginDetails = [];
+//Ungraded task 1
+let Months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
+app.get("/fetchMonth/:month", (req, res) => {
+    let monthIndex = parseInt(req.params.month) - 1;
+    if (monthIndex >= 0 && monthIndex < Months.length) {
+        res.send(Months[monthIndex]);
+    } else {
+        res.send("Invalid month number. Please provide a number between 1 and 12.");
+    }
+});
 // Define the root route to send a welcome message
 app.get("/", (req, res) => {
     res.send("Welcome to the express server");
