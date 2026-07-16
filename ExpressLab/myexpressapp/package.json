@@ -1,0 +1,17 @@
+{
+  "name": "myexpressapp",
+  "version": "1.0.0",
+  "description": "Creating express server from scratch using nodemon",
+  "license": "ISC",
+  "author": "Swastik",
+  "type": "commonjs",
+  "main": "index.js",
+  
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
