@@ -1,17 +1,31 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const session = require('express-session')
-const routes = require('./router/friends.js')
+const session = require('express-session');
+const routes = require('./router/friends.js');
+const app = new express();
 
-let users = []
+let users = [];
 
-// Check if a user with the given username already exists
+//USER REGISTRATION
+app.post("/register", (req, res) => {
+    const username = req.body.username;
+    const password = req.body.password;
+    if (username && password) {
+        if(doesExist(username)) {
+            return res.status(404).json({message: "User already exists!"});
+        }else {
+            users.push({"username": username, "password": password});
+            return res.status(200).json({message: "User successfully registered. Now you can login"});
+        }
+    }
+    return res.status(404).json({message: "Unable to register user."});
+});
+
+//the doesExist function checks if the username already exists in the users array
 const doesExist = (username) => {
-    // Filter the users array for any user with the same username
     let userswithsamename = users.filter((user) => {
-        return user.username === username;
+        return user.username === username
     });
-    // Return true if any user with the same username is found, otherwise false
     if (userswithsamename.length > 0) {
         return true;
     } else {
@@ -19,13 +33,11 @@ const doesExist = (username) => {
     }
 }
 
-// Check if the user with the given username and password exists
+//Now the authenticatedUser function checks if the username and password match any user in the users array
 const authenticatedUser = (username, password) => {
-    // Filter the users array for any user with the same username and password
     let validusers = users.filter((user) => {
-        return (user.username === username && user.password === password);
+        return (user.username === username && user.password === password)
     });
-    // Return true if any valid user is found, otherwise false
     if (validusers.length > 0) {
         return true;
     } else {
@@ -33,82 +45,55 @@ const authenticatedUser = (username, password) => {
     }
 }
 
-const app = express();
+app.use(session({secret:"fingerpint"},resave=true,saveUninitialized=true));   
+app.use(express.json());  
+/*You will provide an endpoint for the registered users to login. This endpoint will do the following:
+Return an error if the username or password is not provided.
 
-app.use(session({secret:"fingerpint"},resave=true,saveUninitialized=true));
+Creates an access token that is valid for 1 hour (60 X 60 seconds) and logs the user in, if the credentials are correct.
 
-app.use(express.json());
+Throws an error, if the credentials are incorrect. */
 
-// Middleware to authenticate requests to "/friends" endpoint
-app.use("/friends", function auth(req, res, next) {
-    // Check if user is logged in and has valid access token
-    if (req.session.authorization) {
-        let token = req.session.authorization['accessToken'];
-
-        // Verify JWT token
-        jwt.verify(token, "access", (err, user) => {
-            if (!err) {
-                req.user = user;
-                next(); // Proceed to the next middleware
-            } else {
-                return res.status(403).json({ message: "User not authenticated" });
-            }
-        });
-    } else {
-        return res.status(403).json({ message: "User not logged in" });
-    }
-});
-
-// Login endpoint
+//LOGIN
 app.post("/login", (req, res) => {
     const username = req.body.username;
     const password = req.body.password;
-
-    // Check if username or password is missing
     if (!username || !password) {
-        return res.status(404).json({ message: "Error logging in" });
+        return res.status(404).json({message: "Error logging in"});
     }
-
-    // Authenticate user
-    if (authenticatedUser(username, password)) {
-        // Generate JWT access token
+    //this will create a token which will expire in 1 hour ie 60*60 seconds
+    if (authenticatedUser(username,password)) {
         let accessToken = jwt.sign({
             data: password
         }, 'access', { expiresIn: 60 * 60 });
-
-        // Store access token and username in session
         req.session.authorization = {
-            accessToken, username
+            accessToken,username
         }
         return res.status(200).send("User successfully logged in");
     } else {
-        return res.status(208).json({ message: "Invalid Login. Check username and password" });
+        return res.status(208).json({message: "Invalid Login. Check username and password"});
     }
 });
+/*We will now ensure that all operations restricted to authenticated users are intercepted by the middleware. The following code ensures that all the endpoints starting with /friends go through the middleware. It retrieves the authorization details from the session and verifies it. If the token is validated, the user is authenticated and the control is passed on to the next endpoint handler. If the token is invalid, the user is not authenticated and an error message is returned. */
 
-// Register a new user
-app.post("/register", (req, res) => {
-    const username = req.body.username;
-    const password = req.body.password;
+app.use("/friends", function auth(req, res, next) {
+    if(req.session.authorization) {
+        let token = req.session.authorization['accessToken'];
 
-    // Check if both username and password are provided
-    if (username && password) {
-        // Check if the user does not already exist
-        if (!doesExist(username)) {
-            // Add the new user to the users array
-            users.push({"username": username, "password": password});
-            return res.status(200).json({message: "User successfully registered. Now you can login"});
-        } else {
-            return res.status(404).json({message: "User already exists!"});
-        }
+        //verify the JWT token
+        jwt.verify(token, "access", (err, user) => {
+            if(!err) {
+                req.user = user;    
+                next();
+            } else {
+                return res.status(403).json({message: "User not authenticated"});
+            }
+        });
+    } else {
+        return res.status(403).json({message: "User not logged in"});
     }
-    // Return error if username or password is missing
-    return res.status(404).json({message: "Unable to register user."});
 });
-
 
 const PORT =5000;
-
 app.use("/friends", routes);
-
 app.listen(PORT,()=>console.log("Server is running"));
